@@ -19,13 +19,18 @@ without recreating those controls.
 
 - Monthly, quarterly, and annual totals count every projected renewal occurrence
   in the selected calendar period.
-- Different currencies are shown separately. The app never implies a live
-  exchange rate that it did not fetch.
+- Currency conversion is optional and uses cached ECB daily reference rates.
+  Missing rates fall back to separate totals instead of silently adding unlike
+  currencies.
+- A selected background image is resized and stored locally. The image and blur
+  are shared behind both top-level tabs while native navigation and tab-bar
+  materials retain platform legibility.
 - Reminder permission is requested in context when the user enables or saves a
   reminder, not immediately at first launch.
 - The default reminder is three days before renewal at 09:00 and is adjustable.
-- Data and notification scheduling stay on device. JSON backup is explicit and
-  user initiated.
+- Renewal data, background images, and notification scheduling stay on device.
+  The only automatic network request fetches the public ECB rate feed; JSON
+  backup is explicit and user initiated.
 
 ## Primary references
 
@@ -35,3 +40,5 @@ without recreating those controls.
 - [SwiftUI `glassEffect`](https://developer.apple.com/documentation/swiftui/view/glasseffect(_:in:))
 - [Tab bars](https://developer.apple.com/design/human-interface-guidelines/tab-bars)
 - [Scheduling a local notification](https://developer.apple.com/documentation/usernotifications/scheduling-a-notification-locally-from-your-app)
+- [ECB euro reference exchange rates](https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html)
+- [SwiftUI PhotosPicker](https://developer.apple.com/documentation/photosui/photospicker)

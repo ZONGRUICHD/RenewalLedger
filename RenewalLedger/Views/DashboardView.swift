@@ -9,10 +9,13 @@ private struct RenewalEditorRoute: Identifiable {
 struct DashboardView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var exchangeRateStore: ExchangeRateStore
     @EnvironmentObject private var notificationManager: NotificationManager
     @Query(sort: \RenewalItem.nextRenewalDate) private var items: [RenewalItem]
 
     @AppStorage("defaultCurrency") private var defaultCurrency = CurrencyOption.cny.rawValue
+    @AppStorage("currencyConversionEnabled") private var currencyConversionEnabled = true
+    @AppStorage("summaryCurrencyCode") private var summaryCurrencyCode = CurrencyOption.cny.rawValue
     @AppStorage("masterRemindersEnabled") private var masterRemindersEnabled = true
     @AppStorage("reminderLeadDays") private var reminderLeadDays = 3
     @AppStorage("reminderHour") private var reminderHour = 9
@@ -42,6 +45,18 @@ struct DashboardView: View {
         }
     }
 
+    private var projectedTotals: [CurrencyTotal] {
+        RenewalProjection.totals(for: projectedOccurrences)
+    }
+
+    private var unifiedAmount: Double? {
+        guard currencyConversionEnabled else { return nil }
+        return exchangeRateStore.convertedAmount(
+            for: projectedTotals,
+            to: summaryCurrencyCode
+        )
+    }
+
     var body: some View {
         NavigationStack {
             List {
@@ -59,8 +74,13 @@ struct DashboardView: View {
                     SpendingSummaryCard(
                         period: selectedPeriod,
                         occurrences: projectedOccurrences,
-                        totals: RenewalProjection.totals(for: projectedOccurrences),
-                        defaultCurrencyCode: defaultCurrency
+                        totals: projectedTotals,
+                        defaultCurrencyCode: defaultCurrency,
+                        conversionEnabled: currencyConversionEnabled,
+                        summaryCurrencyCode: summaryCurrencyCode,
+                        unifiedAmount: unifiedAmount,
+                        exchangeRateStatus: exchangeRateStore.dashboardStatusText,
+                        isRefreshingExchangeRates: exchangeRateStore.isRefreshing
                     )
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
@@ -123,6 +143,8 @@ struct DashboardView: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.clear)
             .navigationTitle("续费簿")
             .searchable(text: $searchText, prompt: "搜索 VPS、会员或备注")
             .sensoryFeedback(.selection, trigger: selectedPeriod)
@@ -158,6 +180,10 @@ struct DashboardView: View {
                 }
             } message: {
                 Text("此操作会同时取消该项目尚未发送的提醒。")
+            }
+            .task(id: currencyConversionEnabled) {
+                guard currencyConversionEnabled else { return }
+                await exchangeRateStore.refreshIfNeeded()
             }
         }
     }

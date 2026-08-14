@@ -7,12 +7,16 @@ import UserNotifications
 struct RenewalLedgerApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var notificationManager = NotificationManager()
+    @StateObject private var exchangeRateStore = ExchangeRateStore()
+    @StateObject private var backgroundImageStore = BackgroundImageStore()
     @AppStorage("appearance") private var appearanceRawValue = AppAppearance.system.rawValue
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environmentObject(notificationManager)
+                .environmentObject(exchangeRateStore)
+                .environmentObject(backgroundImageStore)
                 .preferredColorScheme(
                     AppAppearance(rawValue: appearanceRawValue)?.colorScheme
                 )

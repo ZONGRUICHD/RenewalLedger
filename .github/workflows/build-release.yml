@@ -11,7 +11,7 @@ on:
       release_version:
         description: Release version without the v prefix
         required: true
-        default: "1.0.0"
+        default: "1.1.0"
         type: string
 
 permissions:
@@ -122,9 +122,10 @@ jobs:
           set -euo pipefail
           TAG="v$VERSION"
           NOTES_FILE="$RUNNER_TEMP/release-notes.md"
-          printf '%s\n\n%s\n%s\n' \
+          printf '%s\n\n%s\n%s\n%s\n' \
             "续费簿 $VERSION" \
-            "- iOS 26 原生 SwiftUI / Liquid Glass 界面" \
+            "- 混合币种可按欧洲央行参考汇率统一统计，并支持关闭换算" \
+            "- 修复每次进入应用重复弹出续费提醒；新增本机背景图片与模糊调节" \
             "- 这是未签名 IPA；请使用 AltStore、SideStore、TrollStore 或你自己的证书重新签名后安装。" \
             > "$NOTES_FILE"
 

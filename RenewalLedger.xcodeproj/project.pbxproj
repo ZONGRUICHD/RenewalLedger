@@ -22,6 +22,9 @@
 		A0000000000000000000000D /* SpendingSummaryCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000000D /* SpendingSummaryCard.swift */; };
 		A0000000000000000000000E /* RenewalRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000000E /* RenewalRow.swift */; };
 		A0000000000000000000000F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000000F /* Assets.xcassets */; };
+		A00000000000000000000012 /* ExchangeRateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000012 /* ExchangeRateStore.swift */; };
+		A00000000000000000000013 /* BackgroundImageStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000013 /* BackgroundImageStore.swift */; };
+		A00000000000000000000014 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000014 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -42,6 +45,9 @@
 		B0000000000000000000000F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B00000000000000000000010 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B00000000000000000000011 /* RenewalLedger.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RenewalLedger.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B00000000000000000000012 /* ExchangeRateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExchangeRateStore.swift; sourceTree = "<group>"; };
+		B00000000000000000000013 /* BackgroundImageStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundImageStore.swift; sourceTree = "<group>"; };
+		B00000000000000000000014 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -98,7 +104,9 @@
 		C00000000000000000000005 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				B00000000000000000000013 /* BackgroundImageStore.swift */,
 				B00000000000000000000009 /* BackupDocument.swift */,
+				B00000000000000000000012 /* ExchangeRateStore.swift */,
 				B00000000000000000000007 /* NotificationManager.swift */,
 				B00000000000000000000008 /* RenewalProjection.swift */,
 			);
@@ -121,6 +129,7 @@
 			children = (
 				B0000000000000000000000F /* Assets.xcassets */,
 				B00000000000000000000010 /* Info.plist */,
+				B00000000000000000000014 /* PrivacyInfo.xcprivacy */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -206,6 +215,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A0000000000000000000000F /* Assets.xcassets in Resources */,
+				A00000000000000000000014 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -217,9 +227,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				A00000000000000000000005 /* AppPreferences.swift in Sources */,
+				A00000000000000000000013 /* BackgroundImageStore.swift in Sources */,
 				A00000000000000000000009 /* BackupDocument.swift in Sources */,
 				A00000000000000000000003 /* BillingCycle.swift in Sources */,
 				A0000000000000000000000A /* DashboardView.swift in Sources */,
+				A00000000000000000000012 /* ExchangeRateStore.swift in Sources */,
 				A00000000000000000000007 /* NotificationManager.swift in Sources */,
 				A00000000000000000000002 /* RootView.swift in Sources */,
 				A0000000000000000000000B /* RenewalEditorView.swift in Sources */,
@@ -363,7 +375,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.zongrui.RenewalLedger;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -389,7 +401,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.zongrui.RenewalLedger;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

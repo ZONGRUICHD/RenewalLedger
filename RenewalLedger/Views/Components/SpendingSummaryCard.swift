@@ -7,15 +7,33 @@ struct SpendingSummaryCard: View {
     let occurrences: [RenewalOccurrence]
     let totals: [CurrencyTotal]
     let defaultCurrencyCode: String
+    let conversionEnabled: Bool
+    let summaryCurrencyCode: String
+    let unifiedAmount: Double?
+    let exchangeRateStatus: String?
+    let isRefreshingExchangeRates: Bool
 
     private var nextOccurrence: RenewalOccurrence? {
         occurrences.first { $0.date >= Calendar.current.startOfDay(for: .now) }
     }
 
     private var totalsAnimationKey: String {
-        totals
+        let separated = totals
             .map { "\($0.currencyCode):\($0.amount)" }
             .joined(separator: "|")
+        return "\(conversionEnabled)|\(summaryCurrencyCode)|\(unifiedAmount ?? -1)|\(separated)"
+    }
+
+    private var requiresExchangeRate: Bool {
+        totals.contains { $0.currencyCode.uppercased() != summaryCurrencyCode.uppercased() }
+    }
+
+    private var separatedTotalFont: Font {
+        .system(
+            totals.count > 1 ? .title2 : .largeTitle,
+            design: .rounded,
+            weight: .bold
+        )
     }
 
     var body: some View {
@@ -45,22 +63,51 @@ struct SpendingSummaryCard: View {
             )
 
             VStack(alignment: .leading, spacing: 4) {
-                if totals.isEmpty {
+                if conversionEnabled, let unifiedAmount {
+                    Text(RenewalProjection.money(
+                        unifiedAmount,
+                        currencyCode: summaryCurrencyCode
+                    ))
+                    .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                    .minimumScaleFactor(0.7)
+                    .lineLimit(1)
+                    .contentTransition(.numericText())
+                } else if totals.isEmpty {
                     Text(RenewalProjection.money(0, currencyCode: defaultCurrencyCode))
                         .font(.system(.largeTitle, design: .rounded, weight: .bold))
                         .contentTransition(.numericText())
                 } else {
                     ForEach(totals) { total in
                         Text(total.formatted)
-                            .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                            .font(separatedTotalFont)
                             .minimumScaleFactor(0.7)
                             .lineLimit(1)
                             .contentTransition(.numericText())
                     }
                 }
 
-                if totals.count > 1 {
-                    Text("不同币种分别统计，未使用不透明汇率换算")
+                if conversionEnabled, unifiedAmount != nil, requiresExchangeRate {
+                    if let exchangeRateStatus {
+                        Label(exchangeRateStatus, systemImage: "arrow.triangle.2.circlepath")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } else if conversionEnabled, unifiedAmount == nil, !totals.isEmpty {
+                    HStack(spacing: 6) {
+                        if isRefreshingExchangeRates {
+                            ProgressView()
+                                .controlSize(.mini)
+                        }
+                        Text(
+                            isRefreshingExchangeRates
+                                ? "正在换算，暂按币种显示"
+                                : "汇率暂不可用，已安全回退为分币种显示"
+                        )
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                } else if !conversionEnabled, totals.count > 1 {
+                    Text("统一换算已关闭，不同币种分别统计")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -103,6 +150,5 @@ struct SpendingSummaryCard: View {
             .regular,
             in: RoundedRectangle(cornerRadius: 28, style: .continuous)
         )
-        .accessibilityElement(children: .combine)
     }
 }

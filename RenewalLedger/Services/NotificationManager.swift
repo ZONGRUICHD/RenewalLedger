@@ -7,6 +7,7 @@ final class NotificationManager: ObservableObject {
     @Published private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
 
     private let center = UNUserNotificationCenter.current()
+    private let defaults = UserDefaults.standard
 
     var isAuthorized: Bool {
         switch authorizationStatus {
@@ -69,7 +70,10 @@ final class NotificationManager: ObservableObject {
                 item: item,
                 leadDays: leadDays,
                 hour: hour,
-                minute: minute
+                minute: minute,
+                // Activation sync never turns a missed trigger into a fresh
+                // banner. That was the source of the launch-time repeat bug.
+                allowLateReminder: false
             )
         }
     }
@@ -91,7 +95,8 @@ final class NotificationManager: ObservableObject {
             item: item,
             leadDays: leadDays,
             hour: hour,
-            minute: minute
+            minute: minute,
+            allowLateReminder: true
         )
     }
 
@@ -99,49 +104,51 @@ final class NotificationManager: ObservableObject {
         center.removePendingNotificationRequests(
             withIdentifiers: [notificationIdentifier(for: item)]
         )
+        defaults.removeObject(forKey: scheduledOccurrenceKey(for: item))
     }
 
     private func addRequest(
         item: RenewalItem,
         leadDays: Int,
         hour: Int,
-        minute: Int
+        minute: Int,
+        allowLateReminder: Bool
     ) async {
-
         let calendar = Calendar.current
-        let upcomingRenewalDate = nextDueDate(for: item, calendar: calendar)
-        let dueDate = calendar.date(
-            bySettingHour: hour,
+        guard let schedule = nextReminderSchedule(
+            for: item,
+            leadDays: leadDays,
+            hour: hour,
             minute: minute,
-            second: 0,
-            of: upcomingRenewalDate
-        ) ?? upcomingRenewalDate
-
-        let reminderDate = calendar.date(
-            byAdding: .day,
-            value: -max(0, leadDays),
-            to: dueDate
-        ) ?? dueDate
+            allowLateReminder: allowLateReminder,
+            calendar: calendar
+        ) else {
+            return
+        }
 
         let content = UNMutableNotificationContent()
         content.title = "续费提醒 · \(item.name)"
-        content.body = "将于 \(upcomingRenewalDate.formatted(date: .abbreviated, time: .omitted))续费，金额 \(RenewalProjection.money(item.amount, currencyCode: item.currencyCode))。"
+        content.body = "将于 \(schedule.renewalDate.formatted(date: .abbreviated, time: .omitted))续费，金额 \(RenewalProjection.money(item.amount, currencyCode: item.currencyCode))。"
         content.sound = .default
         content.threadIdentifier = "renewal-reminders"
         content.interruptionLevel = .active
         content.userInfo = ["renewalID": item.id.uuidString]
 
         let trigger: UNNotificationTrigger
-        if reminderDate <= .now {
-            // If the user adds an item less than leadDays before it is due,
-            // deliver a useful reminder immediately instead of silently missing it.
-            trigger = UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
+        if schedule.isLate {
+            trigger = UNTimeIntervalNotificationTrigger(
+                timeInterval: 2,
+                repeats: false
+            )
         } else {
             let components = calendar.dateComponents(
                 [.year, .month, .day, .hour, .minute],
-                from: reminderDate
+                from: schedule.reminderDate
             )
-            trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+            trigger = UNCalendarNotificationTrigger(
+                dateMatching: components,
+                repeats: false
+            )
         }
 
         let request = UNNotificationRequest(
@@ -150,11 +157,106 @@ final class NotificationManager: ObservableObject {
             trigger: trigger
         )
 
-        try? await center.add(request)
+        do {
+            try await center.add(request)
+            recordScheduledOccurrence(
+                for: item,
+                renewalDate: schedule.renewalDate,
+                calendar: calendar
+            )
+        } catch {
+            // The authorization status and scheduling state are refreshed on
+            // the next activation or settings change.
+        }
+    }
+
+    private func nextReminderSchedule(
+        for item: RenewalItem,
+        leadDays: Int,
+        hour: Int,
+        minute: Int,
+        allowLateReminder: Bool,
+        relativeTo referenceDate: Date = .now,
+        calendar: Calendar = .current
+    ) -> (renewalDate: Date, reminderDate: Date, isLate: Bool)? {
+        var renewalDate = nextDueDate(
+            for: item,
+            relativeTo: referenceDate,
+            calendar: calendar
+        )
+        var safetyCounter = 0
+
+        while safetyCounter < 1_000 {
+            let dueDate = calendar.date(
+                bySettingHour: hour,
+                minute: minute,
+                second: 0,
+                of: renewalDate
+            ) ?? renewalDate
+            let reminderDate = calendar.date(
+                byAdding: .day,
+                value: -max(0, leadDays),
+                to: dueDate
+            ) ?? dueDate
+
+            if reminderDate > referenceDate {
+                return (renewalDate, reminderDate, false)
+            }
+
+            let renewalDayEnd = calendar.date(
+                bySettingHour: 23,
+                minute: 59,
+                second: 59,
+                of: renewalDate
+            ) ?? renewalDate
+            let occurrenceToken = occurrenceToken(
+                for: renewalDate,
+                calendar: calendar
+            )
+            if allowLateReminder,
+               referenceDate <= renewalDayEnd,
+               !scheduledOccurrenceTokens(for: item).contains(occurrenceToken) {
+                return (renewalDate, referenceDate.addingTimeInterval(2), true)
+            }
+
+            let nextRenewalDate = item.dateAfterOneCycle(
+                from: renewalDate,
+                calendar: calendar
+            )
+            guard nextRenewalDate > renewalDate else { return nil }
+            renewalDate = nextRenewalDate
+            safetyCounter += 1
+        }
+
+        return nil
     }
 
     private func notificationIdentifier(for item: RenewalItem) -> String {
         "renewal.\(item.id.uuidString)"
+    }
+
+    private func scheduledOccurrenceKey(for item: RenewalItem) -> String {
+        "renewal.lastScheduledOccurrence.\(item.id.uuidString)"
+    }
+
+    private func occurrenceToken(for date: Date, calendar: Calendar) -> String {
+        String(Int(calendar.startOfDay(for: date).timeIntervalSince1970))
+    }
+
+    private func scheduledOccurrenceTokens(for item: RenewalItem) -> [String] {
+        defaults.stringArray(forKey: scheduledOccurrenceKey(for: item)) ?? []
+    }
+
+    private func recordScheduledOccurrence(
+        for item: RenewalItem,
+        renewalDate: Date,
+        calendar: Calendar
+    ) {
+        let token = occurrenceToken(for: renewalDate, calendar: calendar)
+        var tokens = scheduledOccurrenceTokens(for: item)
+        tokens.removeAll { $0 == token }
+        tokens.append(token)
+        defaults.set(Array(tokens.suffix(8)), forKey: scheduledOccurrenceKey(for: item))
     }
 
     private func nextDueDate(
