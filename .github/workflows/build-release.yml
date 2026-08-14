@@ -1,0 +1,137 @@
+name: Build IPA and publish release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .release-trigger
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: Release version without the v prefix
+        required: true
+        default: "1.0.0"
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: renewal-ledger-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Free Linux preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Validate project structure
+        run: bash scripts/validate_project.sh
+
+  build-and-release:
+    name: Build once and publish
+    needs: preflight
+    runs-on: macos-26
+    timeout-minutes: 10
+    env:
+      PROJECT: RenewalLedger.xcodeproj
+      SCHEME: RenewalLedger
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Resolve release version
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ inputs.release_version }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$INPUT_VERSION" ]]; then
+            VERSION="$INPUT_VERSION"
+          else
+            VERSION="$(tr -d '[:space:]' < .release-trigger)"
+          fi
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid release version: $VERSION" >&2
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Select latest stable Xcode 26
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! xcodebuild -version | grep -q '^Xcode 26'; then
+            XCODE_PATH="$(find /Applications -maxdepth 1 -type d -name 'Xcode_26*.app' | sort | tail -n 1)"
+            test -n "$XCODE_PATH"
+            sudo xcode-select --switch "$XCODE_PATH/Contents/Developer"
+          fi
+          xcodebuild -version
+
+      - name: Build unsigned device app
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            MARKETING_VERSION="$VERSION" \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY='' \
+            build
+
+      - name: Package and verify IPA
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP_PATH="$RUNNER_TEMP/DerivedData/Build/Products/Release-iphoneos/RenewalLedger.app"
+          PACKAGE_DIR="$RUNNER_TEMP/ipa-package"
+          IPA_NAME="RenewalLedger-v${VERSION}-unsigned.ipa"
+          IPA_PATH="$RUNNER_TEMP/$IPA_NAME"
+
+          test -d "$APP_PATH"
+          mkdir -p "$PACKAGE_DIR/Payload"
+          ditto "$APP_PATH" "$PACKAGE_DIR/Payload/RenewalLedger.app"
+          (cd "$PACKAGE_DIR" && zip -qry "$IPA_PATH" Payload)
+          unzip -t "$IPA_PATH"
+          test -s "$IPA_PATH"
+
+          echo "ipa_name=$IPA_NAME" >> "$GITHUB_OUTPUT"
+          echo "ipa_path=$IPA_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IPA_NAME: ${{ steps.package.outputs.ipa_name }}
+          IPA_PATH: ${{ steps.package.outputs.ipa_path }}
+        run: |
+          set -euo pipefail
+          TAG="v$VERSION"
+          NOTES_FILE="$RUNNER_TEMP/release-notes.md"
+          printf '%s\n\n%s\n%s\n' \
+            "续费簿 $VERSION" \
+            "- iOS 26 原生 SwiftUI / Liquid Glass 界面" \
+            "- 这是未签名 IPA；请使用 AltStore、SideStore、TrollStore 或你自己的证书重新签名后安装。" \
+            > "$NOTES_FILE"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$IPA_PATH#$IPA_NAME" --clobber
+          else
+            gh release create "$TAG" "$IPA_PATH#$IPA_NAME" \
+              --target "$GITHUB_SHA" \
+              --title "续费簿 $VERSION" \
+              --notes-file "$NOTES_FILE"
+          fi
