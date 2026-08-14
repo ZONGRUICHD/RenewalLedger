@@ -145,7 +145,7 @@ final class NotificationManager: ObservableObject {
         }
 
         let request = UNNotificationRequest(
-            identifier: identifier,
+            identifier: notificationIdentifier(for: item),
             content: content,
             trigger: trigger
         )
