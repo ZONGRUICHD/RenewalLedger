@@ -22,7 +22,6 @@ struct DashboardView: View {
     @State private var searchText = ""
     @State private var editorRoute: RenewalEditorRoute?
     @State private var pendingDelete: RenewalItem?
-    @State private var hasAppeared = false
     @State private var renewalFeedback = 0
 
     private var projectedOccurrences: [RenewalOccurrence] {
@@ -56,12 +55,6 @@ struct DashboardView: View {
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 8, trailing: 0))
                     .listRowSeparator(.hidden)
-                    .opacity(hasAppeared ? 1 : 0)
-                    .offset(y: reduceMotion || hasAppeared ? 0 : 10)
-                    .animation(
-                        reduceMotion ? nil : .spring(duration: 0.52, bounce: 0.14),
-                        value: hasAppeared
-                    )
 
                     SpendingSummaryCard(
                         period: selectedPeriod,
@@ -72,18 +65,6 @@ struct DashboardView: View {
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
                     .listRowSeparator(.hidden)
-                    .opacity(hasAppeared ? 1 : 0)
-                    .scaleEffect(reduceMotion || hasAppeared ? 1 : 0.96, anchor: .top)
-                    .offset(y: reduceMotion || hasAppeared ? 0 : 14)
-                    .animation(
-                        reduceMotion ? nil : .spring(duration: 0.68, bounce: 0.2).delay(0.04),
-                        value: hasAppeared
-                    )
-                    .scrollTransition { content, phase in
-                        content
-                            .opacity(reduceMotion || phase.isIdentity ? 1 : 0.78)
-                            .scaleEffect(reduceMotion || phase.isIdentity ? 1 : 0.965)
-                    }
                 }
 
                 Section {
@@ -105,7 +86,7 @@ struct DashboardView: View {
                             } label: {
                                 RenewalRow(item: item, leadDays: reminderLeadDays)
                             }
-                            .buttonStyle(RenewalPressButtonStyle())
+                            .buttonStyle(.plain)
                             .swipeActions(edge: .leading, allowsFullSwipe: true) {
                                 Button {
                                     markRenewed(item)
@@ -128,11 +109,6 @@ struct DashboardView: View {
                                 }
                                 .tint(.blue)
                             }
-                            .scrollTransition { content, phase in
-                                content
-                                    .opacity(reduceMotion || phase.isIdentity ? 1 : 0.72)
-                                    .scaleEffect(reduceMotion || phase.isIdentity ? 1 : 0.97)
-                            }
                         }
                     }
                 } header: {
@@ -149,16 +125,8 @@ struct DashboardView: View {
             }
             .navigationTitle("续费簿")
             .searchable(text: $searchText, prompt: "搜索 VPS、会员或备注")
-            .animation(
-                reduceMotion ? nil : .spring(duration: 0.46, bounce: 0.12),
-                value: filteredItems.map(\.id)
-            )
             .sensoryFeedback(.selection, trigger: selectedPeriod)
             .sensoryFeedback(.success, trigger: renewalFeedback)
-            .onAppear {
-                guard !hasAppeared else { return }
-                hasAppeared = true
-            }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {

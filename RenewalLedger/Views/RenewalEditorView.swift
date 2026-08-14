@@ -4,7 +4,6 @@ import SwiftUI
 import UserNotifications
 
 struct RenewalEditorView: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var notificationManager: NotificationManager
@@ -25,7 +24,6 @@ struct RenewalEditorView: View {
     @State private var reminderEnabled: Bool
     @State private var note: String
     @State private var saveError: String?
-    @State private var hasAppeared = false
 
     init(item: RenewalItem?) {
         self.item = item
@@ -110,18 +108,8 @@ struct RenewalEditorView: View {
                         .lineLimit(3...6)
                 }
             }
-            .opacity(hasAppeared ? 1 : 0)
-            .offset(y: reduceMotion || hasAppeared ? 0 : 12)
-            .animation(
-                reduceMotion ? nil : .spring(duration: 0.58, bounce: 0.16),
-                value: hasAppeared
-            )
             .sensoryFeedback(.selection, trigger: cycle)
             .sensoryFeedback(.selection, trigger: category)
-            .onAppear {
-                guard !hasAppeared else { return }
-                hasAppeared = true
-            }
             .navigationTitle(item == nil ? "添加续费" : "编辑续费")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

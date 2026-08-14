@@ -1,4 +1,3 @@
-import Foundation
 import SwiftUI
 
 struct SpendingSummaryCard: View {
@@ -8,9 +7,6 @@ struct SpendingSummaryCard: View {
     let occurrences: [RenewalOccurrence]
     let totals: [CurrencyTotal]
     let defaultCurrencyCode: String
-
-    @State private var pulseScale: CGFloat = 1
-    @State private var shinePosition: CGFloat = -0.5
 
     private var nextOccurrence: RenewalOccurrence? {
         occurrences.first { $0.date >= Calendar.current.startOfDay(for: .now) }
@@ -29,17 +25,9 @@ struct SpendingSummaryCard: View {
                     .foregroundStyle(.tint)
                     .symbolEffect(.bounce, value: period)
 
-                ZStack(alignment: .leading) {
-                    Text(period.summaryTitle)
-                        .id(period)
-                        .transition(
-                            .asymmetric(
-                                insertion: .move(edge: .bottom).combined(with: .opacity),
-                                removal: .move(edge: .top).combined(with: .opacity)
-                            )
-                        )
-                }
-                .font(.headline)
+                Text(period.summaryTitle)
+                    .font(.headline)
+                    .contentTransition(.interpolate)
 
                 Spacer()
                 Text("\(occurrences.count) 笔")
@@ -48,11 +36,11 @@ struct SpendingSummaryCard: View {
                     .contentTransition(.numericText())
             }
             .animation(
-                reduceMotion ? nil : .spring(duration: 0.46, bounce: 0.16),
+                reduceMotion ? nil : .snappy(duration: 0.36, extraBounce: 0.04),
                 value: period
             )
             .animation(
-                reduceMotion ? nil : .spring(duration: 0.44, bounce: 0.12),
+                reduceMotion ? nil : .snappy(duration: 0.34, extraBounce: 0),
                 value: occurrences.count
             )
 
@@ -78,7 +66,7 @@ struct SpendingSummaryCard: View {
                 }
             }
             .animation(
-                reduceMotion ? nil : .spring(duration: 0.56, bounce: 0.18),
+                reduceMotion ? nil : .snappy(duration: 0.42, extraBounce: 0.02),
                 value: totalsAnimationKey
             )
 
@@ -115,51 +103,6 @@ struct SpendingSummaryCard: View {
             .regular,
             in: RoundedRectangle(cornerRadius: 28, style: .continuous)
         )
-        .overlay {
-            if !reduceMotion {
-                GeometryReader { geometry in
-                    LinearGradient(
-                        colors: [
-                            .clear,
-                            Color.white.opacity(0.2),
-                            Color.accentColor.opacity(0.08),
-                            .clear
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .frame(width: geometry.size.width * 0.34)
-                    .rotationEffect(.degrees(12))
-                    .offset(x: geometry.size.width * shinePosition)
-                    .blendMode(.plusLighter)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-                .allowsHitTesting(false)
-            }
-        }
-        .scaleEffect(pulseScale)
-        .animation(
-            reduceMotion ? nil : .spring(duration: 0.48, bounce: 0.18),
-            value: nextOccurrence?.id
-        )
-        .onChange(of: period) { _, _ in
-            guard !reduceMotion else { return }
-
-            withAnimation(.easeOut(duration: 0.08)) {
-                pulseScale = 0.982
-            }
-            shinePosition = -0.5
-            DispatchQueue.main.async {
-                withAnimation(.easeInOut(duration: 0.62)) {
-                    shinePosition = 1.2
-                }
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
-                withAnimation(.spring(duration: 0.52, bounce: 0.24)) {
-                    pulseScale = 1
-                }
-            }
-        }
         .accessibilityElement(children: .combine)
     }
 }

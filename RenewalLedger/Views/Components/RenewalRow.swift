@@ -1,8 +1,6 @@
 import SwiftUI
 
 struct RenewalRow: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     let item: RenewalItem
     let leadDays: Int
 
@@ -71,30 +69,7 @@ struct RenewalRow: View {
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
-        .animation(
-            reduceMotion ? nil : .spring(duration: 0.48, bounce: 0.18),
-            value: item.nextRenewalDate
-        )
         .accessibilityElement(children: .combine)
         .accessibilityHint("轻点编辑，向右轻扫可标记已续费")
-    }
-}
-
-struct RenewalPressButtonStyle: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(reduceMotion || !configuration.isPressed ? 1 : 0.985)
-            .rotation3DEffect(
-                .degrees(reduceMotion || !configuration.isPressed ? 0 : 1.4),
-                axis: (x: 1, y: 0, z: 0),
-                perspective: 0.4
-            )
-            .opacity(configuration.isPressed ? 0.88 : 1)
-            .animation(
-                reduceMotion ? nil : .spring(duration: 0.32, bounce: 0.24),
-                value: configuration.isPressed
-            )
     }
 }
