@@ -4,6 +4,7 @@ import UIKit
 import UniformTypeIdentifiers
 
 struct SettingsView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openURL) private var openURL
     @EnvironmentObject private var notificationManager: NotificationManager
@@ -23,6 +24,7 @@ struct SettingsView: View {
     @State private var showResetConfirmation = false
     @State private var operationError: String?
     @State private var operationMessage: String?
+    @State private var hasAppeared = false
 
     private var reminderTime: Binding<Date> {
         Binding {
@@ -42,12 +44,32 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 notificationSection
+                    .opacity(hasAppeared ? 1 : 0)
+                    .offset(y: reduceMotion || hasAppeared ? 0 : 12)
+                    .animation(entranceAnimation(delay: 0), value: hasAppeared)
                 defaultsSection
+                    .opacity(hasAppeared ? 1 : 0)
+                    .offset(y: reduceMotion || hasAppeared ? 0 : 12)
+                    .animation(entranceAnimation(delay: 0.035), value: hasAppeared)
                 appearanceSection
+                    .opacity(hasAppeared ? 1 : 0)
+                    .offset(y: reduceMotion || hasAppeared ? 0 : 12)
+                    .animation(entranceAnimation(delay: 0.07), value: hasAppeared)
                 dataSection
+                    .opacity(hasAppeared ? 1 : 0)
+                    .offset(y: reduceMotion || hasAppeared ? 0 : 12)
+                    .animation(entranceAnimation(delay: 0.105), value: hasAppeared)
                 aboutSection
+                    .opacity(hasAppeared ? 1 : 0)
+                    .offset(y: reduceMotion || hasAppeared ? 0 : 12)
+                    .animation(entranceAnimation(delay: 0.14), value: hasAppeared)
             }
             .navigationTitle("设置")
+            .sensoryFeedback(.selection, trigger: appearance)
+            .onAppear {
+                guard !hasAppeared else { return }
+                hasAppeared = true
+            }
             .task {
                 await notificationManager.refreshAuthorizationStatus()
             }
@@ -166,8 +188,6 @@ struct SettingsView: View {
             DatePicker("提醒时间", selection: reminderTime, displayedComponents: .hourAndMinute)
         } header: {
             Text("提醒")
-        } footer: {
-            Text("默认在续费日 3 天前提醒。所有提醒都在本机生成，不需要服务器或账号。")
         }
     }
 
@@ -227,8 +247,6 @@ struct SettingsView: View {
             .disabled(items.isEmpty)
         } header: {
             Text("数据")
-        } footer: {
-            Text("续费项目使用 SwiftData 保存在本机；应用不会上传价格、备注或账号信息。")
         }
     }
 
@@ -236,8 +254,12 @@ struct SettingsView: View {
         Section("关于") {
             LabeledContent("应用", value: "续费簿")
             LabeledContent("版本", value: versionText)
-            LabeledContent("设计", value: "iOS 26 · Liquid Glass")
         }
+    }
+
+    private func entranceAnimation(delay: Double) -> Animation? {
+        guard !reduceMotion else { return nil }
+        return .spring(duration: 0.58, bounce: 0.14).delay(delay)
     }
 
     private var versionText: String {

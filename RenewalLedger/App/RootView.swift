@@ -28,6 +28,7 @@ struct RootView: View {
                 SettingsView()
             }
         }
+        .sensoryFeedback(.selection, trigger: selectedTab)
         .task {
             await synchronizeNotifications()
         }
